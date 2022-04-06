@@ -1,0 +1,97 @@
+---
+title: "sweetness.bt"
+author: "C. Luckett"
+date: "4/4/2022"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pacman)
+pacman::p_load(CompR, ggplot2, dplyr, readr, reshape2)
+```
+
+
+```{r}
+data <- read_csv("cola_sweetness.csv", show_col_types = FALSE,
+                   col_names = FALSE) 
+data <- as.matrix(data)
+#transform data for analysis
+sample.names <- c("SplA",	"SplB",	"SplC",	"SplD",	"SplE")
+data_ <- ClassDataPairComp(data, labelprod = sample.names, labelcons = NULL, labelcrit = NULL)
+```
+
+```{r}
+#make cluster models
+one.cluster <- EstimBradley(data_,Constraint=0,Tcla=1,eps=0.001,eps1=0.001,TestPi=TRUE)
+two.cluster <- EstimBradley(data_,Constraint=0,Tcla=2,eps=0.001,eps1=0.001,TestPi=TRUE)
+three.cluster <- EstimBradley(data_,Constraint=0,Tcla=3,eps=0.001,eps1=0.001,TestPi=TRUE)
+four.cluster <- EstimBradley(data_,Constraint=0,Tcla=4,eps=0.001,eps1=0.001,TestPi=TRUE)
+five.cluster <- EstimBradley(data_,Constraint=0,Tcla=5,eps=0.001,eps1=0.001,TestPi=TRUE)
+```
+
+```{r}
+#make table of BT scores for entire age group
+res <- as.data.frame(getPi(one.cluster))
+names(res) <- c("BT.rating")
+var <- as.data.frame(getVarcov(one.cluster))
+var <- as.matrix(var, ncol = 5)
+variance <- diag(var)
+res$SE <- sqrt(variance)
+res
+```
+
+```{r}
+res$Sample <- sample.names
+# a graph
+g.res <- ggplot(data = res, aes(x = Sample, y = BT.rating, colour = Sample)) + geom_point() + theme_classic() + ylab("Sweetness Intensity (arbitrary units)") + geom_errorbar(aes(ymin = BT.rating-SE, ymax = BT.rating + SE, width = .2))
+g.res
+#look for sign. differences among sweetness
+getRestestprod(one.cluster)
+getRestestprod(four.cluster)
+```
+
+```{r}
+#make table of information criteria
+all1.ic <- as.data.frame(getIc(one.cluster))
+all1.ic$total<- sum(all1.ic[,2:4])
+all2.ic <- as.data.frame(getIc(two.cluster))
+all2.ic$total<- sum(all2.ic[,2:4])
+all3.ic <- as.data.frame(getIc(three.cluster))
+all3.ic$total<- sum(all3.ic[,2:4])
+all4.ic <- as.data.frame(getIc(four.cluster))
+all4.ic$total<- sum(all4.ic[,2:4])
+all5.ic <- as.data.frame(getIc(five.cluster))
+all5.ic$total<- sum(all5.ic[,2:4])
+all.ic.tbl <- rbind(all1.ic,all2.ic,all3.ic, all4.ic, all5.ic)
+names(all.ic.tbl) <- c("Clusters", "aic", "bic", "caic", "TotalIC" )
+all.ic.tbl
+```
+
+```{r}
+g <- ggplot(data = all.ic.tbl, aes(x=Clusters, y=TotalIC)) + geom_line() + theme_classic()
+g
+```
+since we have 4 clusters lets take a look at the differences
+```{r}
+res.4 <- as.data.frame(getPi(four.cluster))
+names(res.4) <- c(1:4)
+res.4$Spl <- rownames(res.4)
+res.4l <- melt(res.4, id.vars= c("Spl"))
+names(res.4l) <- c("Spl", "Cluster", "Sweetness")
+```
+
+```{r}
+g.four <- ggplot(data = res.4l,aes(x=Spl, y=Sweetness, group = Cluster, colour = Cluster)) + geom_point() + geom_line() + theme_classic()
+
+var.4 <- as.data.frame(getVarcov(four.cluster))
+
+
+var <- as.matrix(var, ncol = 5)
+variance <- diag(var)
+res$SE <- sqrt(variance)
+res
+
+```
