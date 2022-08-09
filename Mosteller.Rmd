@@ -1,0 +1,82 @@
+---
+title: "Mosteller"
+author: "C. Luckett"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pacman)
+pacman::p_load(ggplot2, matrixcalc, reshape2)
+```
+
+```{r make data}
+Spl1 <- c("na", 0.528, 0.444, 0.667, 0.583, 0.556, 0.639, 0.611)
+Spl2 <- c(0.472, "na", 0.583, 0.528, 0.629, 0.657, 0.583, 0.611)
+Spl3 <- c(0.556, 0.417, "na", 0.543, 0.611 ,0.667, 0.694, 0.722)
+Spl4 <- c(0.333, 0.472, 0.457, "na", 0.4, 0.806, 0.629, 0.667)
+Spl5 <- c(0.417, 0.371, 0.389, 0.6, "na", 0.543, 0.657, 0.556)
+Spl6 <- c(0.444, 0.343, 0.333, 0.194, 0.457, "na", 0.429, 0.556)
+Spl7 <- c(0.361, 0.417, 0.306, 0.371, 0.343, 0.571, "na", 0.5)
+Spl8 <- c(0.389, 0.389, 0.278, 0.333, 0.444, 0.444, 0.5, "na")
+data <- data.frame(cbind(Spl1, Spl2, Spl3, Spl4, Spl5, Spl6, Spl7, Spl8))
+data <- data.frame(lapply(data, as.numeric))
+rownames(data) <- c("Spl1", "Spl2", "Spl3", "Spl4", "Spl5", "Spl6", "Spl7", "Spl8")
+```
+
+```{r make function}
+s.data <- as.data.frame(lapply(data, qnorm))
+rownames(s.data) <- c("Spl1", "Spl2", "Spl3", "Spl4", "Spl5", "Spl6", "Spl7", "Spl8")
+s.data["Sum",] <- colSums(s.data, na.rm = TRUE)
+s.data["Mean",] <- colMeans(s.data[1:nrow(data),], na.rm = TRUE)
+s.data
+```
+
+```{r plot}
+s.prime <- data.frame(melt(s.data[10,]))
+names(s.prime) <- c("Sample", "S.prime")
+g <- ggplot(data = s.prime, aes(x = Sample, y = S.prime)) + geom_point(size = 8, color = "black") + geom_point(size = 6, color = "red") + ylab("S′") + theme_classic()
+g
+```
+
+```{r Si-Sj matrix}
+zz <-vector()
+for (i in 1:8){
+  for (j in 1:8){
+  S = s.data["Mean",j] - s.data["Mean",i]
+  zz = rbind(zz, S)
+  }
+}
+rownames(zz) <- NULL
+s.matrix <- matrix(zz, nrow = 8)
+```
+
+```{r p ij matrix}
+p.matrix <- as.data.frame(lapply(as.data.frame(s.matrix), pnorm))
+```
+
+```{r make theta values}
+theta <- function(x) {
+  return(asin(sqrt(x))*180/pi)
+}
+theta.double.prime.matrix <- as.data.frame(lapply(p.matrix, theta))
+theta.prime.matrix <- as.data.frame(lapply(data, theta))
+```
+  
+```{r sum of squares}
+temp.theta <- theta.double.prime.matrix - theta.prime.matrix
+sum.of.squares <- lower.triangle(as.matrix(temp.theta^2))
+sum.of.squares[is.na(sum.of.squares)] <- 0
+sum(sum.of.squares)
+```
+
+```{r chi square test}
+observations <- 45
+df <- observations-1
+calc.chi.square <- sum(sum.of.squares)/(821/observations)
+p.value <- pchisq(calc.chi.square, df, lower.tail = FALSE)
+p.value
+```
